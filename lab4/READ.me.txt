@@ -1,0 +1,36 @@
+Báo cáo thực hành Lab 4
+- Họ và tên: Lương Hào Minh
+- MSSV: 1150080066
+- Bài thực hành: Lab 4 – Khảo sát và đánh giá bề mặt mạng bằng Nmap
+
+1. Môi trường thực hành
+- Hệ điều hành: 
+  - Máy quét: Kali Linux trên VMware Workstation (Chế độ mạng: Host-only).
+  - Máy đích / Máy đối chiếu: Windows Server 2025 (hoặc Metasploitable 2) trên VMware Workstation (Chế độ mạng: Host-only).
+- Công cụ sử dụng:
+  - Nmap
+  - Zenmap
+  - Npcap
+  - xsltproc
+
+2. Cách dựng môi trường
+1. Cấu hình card mạng máy ảo: Chuyển toàn bộ máy ảo (Kali Linux, Windows Server 2025 / Metasploitable 2) sang dải mạng cô lập Host-only (VMnet1) để bảo đảm an toàn theo quy định bài lab.
+2. Tạo thư mục làm việc và lưu trữ bằng chứng trên Kali: mkdir -p ~/lab4_output.
+3. Cập nhật kho ứng dụng và cài đặt bộ công cụ Nmap, Zenmap, xsltproc trên Kali Linux.
+4. Tạo Snapshot ban đầu (Before-LAB4) cho các máy ảo trước khi tiến hành quét.
+5. Xác minh địa chỉ IP thực tế của từng máy (ip -br addr trên Kali, ipconfig trên Windows) và kiểm tra thông mạng nội bộ bằng lệnh ping.
+
+3. Tiến độ và kết quả các tình huống
+- Baseline & Host Discovery (Mục 5): Quét phát hiện toàn bộ các host đang hoạt động trong dải mạng nội bộ bằng tùy chọn -sn — PASS
+- Nhiệm vụ 1 – Khảo sát cổng TCP (Mục 6): Thực hiện và đối chiếu các kỹ thuật quét TCP Connect (-sT), SYN Stealth (-sS), phân tích phản ứng RFC 793 (-sF, -sX, -sN) và đo lường chính sách lọc tường lửa bằng ACK scan (-sA) — PASS
+- Nhiệm vụ 2 – Quét UDP có kiểm soát (Mục 7): Quét nhóm 20 cổng UDP phổ biến (--top-ports 20), ghi nhận và phân tích trạng thái open và open|filtered — PASS
+- Nhiệm vụ 3 – Nhận diện dịch vụ và hệ điều hành (Mục 8): Bóc tách chính xác phiên bản dịch vụ (-sV), nhận diện hệ điều hành (-O) và quét tổng hợp nâng cao (-A) — PASS
+- Nhiệm vụ 4 – Kiểm tra bằng Nmap Scripting Engine (Mục 9): Thu thập thông tin SMB (smb-os-discovery) và rà soát dấu hiệu lỗ hổng an toàn MS17-010 (smb-vuln-ms17-010) — PASS
+- Nhiệm vụ 5 – Xuất hồ sơ bằng chứng (Mục 10): Xuất đồng thời 3 định dạng (-oA), trích xuất nhanh cổng 445 qua Grepable và chuyển đổi báo cáo XML sang định dạng HTML bằng xsltproc — PASS
+- Nhiệm vụ 6 – Tình huống Hardening Trước / Sau (Mục 11): So sánh bề mặt mạng Before/After khi thay đổi cấu hình tường lửa (Firewall) hoặc tắt dịch vụ thử nghiệm để chứng minh hiệu lực phòng thủ — PASS
+
+4. Lỗi gặp phải và cách khắc phục
+- Lỗi thiếu quyền khi chạy SYN scan, UDP scan và OS detection: Khi gõ nmap -sS, nmap -sU hoặc nmap -O bằng tài khoản thường, Nmap báo lỗi yêu cầu raw socket privileges; khắc phục bằng cách thêm tiền tố sudo trước câu lệnh.
+- Lỗi ping không phản hồi từ máy Windows: Máy đích Windows Server bật sẵn tường lửa chặn các gói tin ICMP Echo Request; khắc phục bằng cách vào Windows Defender Firewall with Advanced Security kích hoạt rule cho phép File and Printer Sharing (Echo Request - ICMPv4-In) hoặc bổ sung tùy chọn -Pn trong Nmap để bỏ qua bước ping.
+- Lỗi lọc Grepable "No such file": Khi chạy lệnh grep "445/open" smb.txt bị báo lỗi không tìm thấy tệp do chưa hoàn thành bước quét xuất file -oG smb.txt; khắc phục bằng cách chạy lệnh tạo tệp xuất dữ liệu trước khi thực hiện pipe/grep lọc kết quả.
+- Lỗi thiếu gói xsltproc khi tạo HTML: Lệnh xsltproc báo command not found; khắc phục bằng cách chạy lệnh sudo apt install xsltproc trên Kali Linux trước khi tiến hành chuyển đổi báo cáo.
