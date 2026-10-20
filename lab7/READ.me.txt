@@ -1,0 +1,46 @@
+BÁO CÁO THỰC HÀNH LAB 7
+
+- Họ và tên: Lương Hào Minh
+- MSSV: 1150080066
+- Bài thực hành: Lab 7 – Xây dựng chính sách Web Protection trên mô hình pfSense + Web Proxy
+- Trạng thái: Đang thực hiện (Hoàn thành ~50% – Đã chuẩn bị hạ tầng mạng, gán IP tĩnh và thông mạng nội bộ)
+
+1. Môi trường thực hành
+- Hệ điều hành & Máy ảo (VMware Workstation):
+  + pfSense (FreeBSD 12 64-bit): Firewall / Gateway (WAN: NAT, LAN: 10.6.0.1, DMZ: 172.16.6.1).
+  + DC01 (Windows Server 2022): Active Directory & DNS (10.6.0.10/24).
+  + WEB-PROXY (Ubuntu Server 24.04 LTS): Máy chủ Web Proxy chuyên dụng (10.6.0.30/24).
+  + DMZ-WEB (Ubuntu Server 24.04 LTS): Máy chủ Web mô phỏng (172.16.6.10/24).
+  + Client-A (Ubuntu / Windows Client): Máy trạm kiểm thử (10.6.0.21/24).
+- Phân vùng mạng ảo (LAN Segments):
+  + LAB7-LAN: Dùng cho phân vùng LAN 10.6.0.0/24 (pfSense LAN, DC01, WEB-PROXY, Client-A).
+  + LAB7-DMZ: Dùng cho phân vùng DMZ 172.16.6.0/24 (pfSense DMZ, DMZ-WEB).
+- Công cụ sử dụng: Squid, E2Guardian, ClamAV, Nginx, Netplan, PowerShell.
+
+2. Cách dựng môi trường
+1. Khởi tạo các phân vùng mạng ảo: Mở Virtual Machine Settings trên VMware, vào mục LAN Segments... tạo 2 phân vùng mạng cô lập đặt tên LAB7-LAN và LAB7-DMZ.
+2. Nhân bản và gán Card mạng cho các máy ảo:
+   - pfSense: Gán 3 Card mạng lần lượt là NAT, LAB7-LAN, LAB7-DMZ.
+   - DC01, WEB-PROXY, Client-A: Gán Card mạng vào LAB7-LAN.
+   - DMZ-WEB: Gán Card mạng vào LAB7-DMZ.
+3. Cấu hình địa chỉ IP tĩnh:
+   - DC01: Vào Control Panel > Network Connections, chọn IPv4 đặt IP 10.6.0.10, Subnet Mask 255.255.255.0, Gateway 10.6.0.1, DNS 127.0.0.1.
+   - WEB-PROXY: Chỉnh sửa file Netplan /etc/netplan/00-installer-config.yaml gán IP 10.6.0.30/24, Gateway 10.6.0.1, DNS 10.6.0.10 và 8.8.8.8.
+4. Kiểm tra kết nối nội bộ: Mở terminal trên WEB-PROXY thực hiện lệnh ping kiểm tra kết nối tới Gateway 10.6.0.1 và máy DC01 10.6.0.10.
+
+3. Tiến độ và kết quả các tình huống
+- Khởi tạo phân vùng mạng & Gán Card mạng (LAN Segments): Tạo đúng 2 phân vùng LAB7-LAN, LAB7-DMZ và gán card mạng tương ứng cho 5 VM — PASS
+- Cấu hình IP tĩnh & Thông mạng nội bộ: Đặt IP cho DC01, WEB-PROXY và kiểm tra ping phản hồi thành công 0% packet loss — PASS
+- Cài đặt bộ gói dịch vụ Proxy (WEB-PROXY): Chạy apt update và cài đặt squid, e2guardian, clamav, clamav-daemon — IN PROGRESS (Đang thực hiện)
+- Dựng Website mô phỏng & DNS Zone lab7.test: Chạy script dựng 13 vhost Nginx trên DMZ-WEB và khởi tạo bản ghi DNS trên DC01 — PENDING (Chưa thực hiện)
+- Cấu hình pfSense Ruleset ép Proxy & Chống bypass: Tạo Alias, cấu hình Firewall Rules chặn direct port 80/443 và cho phép lưu lượng qua port 8080 — PENDING (Chưa thực hiện)
+- Xây dựng chính sách Web Protection (E2Guardian): Cấu hình Hard Block, Warning/Bypass, Exception list, Schedule 60m, AV Scanning và Quản lý dung lượng download — PENDING (Chưa thực hiện)
+- Kiểm thử 10 kịch bản & Xuất báo cáo bằng chứng: Thực hiện test từ Client-A, chụp ảnh màn hình và đối chiếu log — PENDING (Chưa thực hiện)
+
+4. Lỗi gặp phải và cách khắc phục
+- Lỗi "Please specify a LAN segment" trên VMware: Khi chọn chế độ kết nối LAN Segment cho Network Adapter nhưng không lưu được do ô danh sách phân vùng bị để trống.
+  + Khắc phục: Nhấn vào nút LAN Segments... trong cửa sổ cài đặt VM, chọn Add để khởi tạo 2 tên vùng LAB7-LAN và LAB7-DMZ, sau đó nhấp chọn đúng tên vùng tương ứng cho từng Card mạng.
+- Lỗi cú pháp Netplan expected mapping (check indentation): Khi chạy lệnh sudo netplan apply trên máy WEB-PROXY bị báo lỗi định dạng lề tại dòng nameservers:.
+  + Khắc phục: Mở file /etc/netplan/00-installer-config.yaml, xóa các ký tự phím Tab, căn chỉnh lại bằng phím Space sao cho các thẻ dhcp4:, addresses:, routes:, nameservers: nằm thẳng hàng dọc cùng mức thụt lề 6 khoảng trắng.
+- Lỗi ping không thông DC01 và không thể apt update: Lệnh ping 10.6.0.10 báo 100% packet loss và lệnh apt update báo lỗi Temporary failure resolving do thiếu phân giải DNS.
+  + Khắc phục: Bật máy ảo DC01 và thiết lập địa chỉ IP tĩnh 10.6.0.10 trong phần IPv4 Properties; đồng thời bổ sung DNS phụ 8.8.8.8 vào file Netplan của WEB-PROXY để máy ra được Internet tải các gói dịch vụ e2guardian và squid.
