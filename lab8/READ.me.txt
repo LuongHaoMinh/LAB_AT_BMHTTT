@@ -1,0 +1,46 @@
+BÁO CÁO THỰC HÀNH LAB 8
+- Họ và tên:** Lương Hào Minh
+- MSSV:** 1150080066
+- Bài thực hành:** Lab 8 – Local DNS Attack (DNS Spoofing & Cache Poisoning) trong mạng ảo cô lập
+- Trạng thái:** Đang thực hiện (Hoàn thành ~40% – Đã dựng hạ tầng cô lập, gán IP và kiểm tra thông mạng)
+1. Môi trường thực hành**
+Hệ điều hành / Máy ảo (VMware Workstation):
+Firewall / Router:** pfSense 2.7.2-RELEASE (nền FreeBSD 64-bit) (DNSLAB: 10.9.0.1/24).
+DNS Server:** Ubuntu Server 24.04 LTS (10.9.0.10/24) chạy BIND9.
+Client / Victim:** Client-A (Ubuntu / Windows) (10.9.0.100/24).
+Attacker:** Kali Linux (10.9.0.200/24) chạy Scapy, Wireshark.
+Cấu hình Card mạng ảo (VMware Virtual Network):
+Card DNSLAB:** Chế độ LAN Segment `dns-lab` (dải IP nội bộ cô lập 10.9.0.0/24).
+Công cụ / Dịch vụ sử dụng:**
+BIND9 (named), Netplan, dig, nslookup, resolvectl.
+pfSense WebGUI & Firewall Ruleset.
+Wireshark, Scapy, python3.
+2. Cách dựng môi trường**
+1. **Khởi tạo phân vùng mạng ảo cô lập:**
+Mở Virtual Machine Settings trên VMware, nhấp vào nút LAN Segments... tạo phân vùng mạng mới đặt tên `dns-lab`.
+2. **Gán Card mạng cho các máy ảo:**
+pfSense: Thêm/gán Network Adapter 5 kết nối vào `LAN segment: dns-lab`.
+DNS-SERVER, VICTIM, Attacker (Kali): Chuyển Network Adapter sang `LAN segment: dns-lab`.
+Bật Promiscuous Mode cho card mạng của Kali (`promisc = "TRUE"`).
+3. **Gán Interface và cấu hình IP trên pfSense Console/WebGUI:**
+Gán card mới cho interface DNSLAB, đặt IP tĩnh 10.9.0.1/24 (không gán Upstream Gateway).
+Tạo các luật cô lập (Firewall Rules): Cho phép 10.9.0.10 ra DMZ port 53, chặn 10.9.0.0/24 tới các dải LAN/MGMT khác.
+4. **Cấu hình địa chỉ IP tĩnh trên máy ảo:**
+DNS-SERVER: Chỉnh file Netplan gán IP 10.9.0.10/24, Gateway 10.9.0.1.
+VICTIM: Đặt IP 10.9.0.100/24, Gateway 10.9.0.1, DNS Server duy nhất 10.9.0.10.
+5. **Kiểm tra thông mạng nội bộ:**
+Từ DNS-SERVER và VICTIM thực hiện lệnh ping 10.9.0.1 để kiểm tra kết nối tới pfSense.
+3. Tiến độ và kết quả các tình huống**
+Khởi tạo phân vùng cô lập & Gán Card mạng (dns-lab):** Tạo đúng LAN Segment dns-lab và gán card cho pfSense, DNS-SERVER, VICTIM, Kali — PASS
+Cấu hình IP tĩnh & Thông mạng nội bộ:** Đặt IP tĩnh cho DNS-SERVER (10.9.0.10), VICTIM (10.9.0.100) và ping thông 10.9.0.1 thành công — PASS
+Cài đặt & Baseline dịch vụ DNS (BIND9):** Cài bind9, cấu hình zone đệ quy và kiểm tra lệnh dig trả kết quả hợp lệ — IN PROGRESS (Đang thực hiện)
+Task 1 – Thay đổi file /etc/hosts trên Victim:** Thêm bản ghi trỏ tên miền về 10.9.0.200, đối chiếu sự khác biệt giữa getent và dig — IN PROGRESS (Đang thực hiện)
+Task 2 – Direct DNS Spoofing:** Chạy script giả mạo phản hồi trực tiếp tới Victim, bắt gói bằng Wireshark — PENDING (Chưa thực hiện)
+Task 3 – DNS Cache Poisoning:** Giả mạo phản hồi tới BIND9 Resolver, kiểm tra file dump cache (rndc dumpdb) — PENDING (Chưa thực hiện)
+**4. Lỗi gặp phải và cách khắc phục**
+Lỗi ping 10.9.0.1 báo 100% packet loss (Destination Host Unreachable):** Do chọn sai card mạng khiến pfSense và DNS-SERVER nằm ở 2 dải mạng ảo khác nhau.
+Khắc phục:* Mở Settings trên VMware của cả 2 máy, đưa cùng về một nút chọn `LAN segment: dns-lab`.
+Lỗi không apt update / install được bind9:** Máy DNS-SERVER nằm trong mạng cô lập dns-lab nên không có Internet để tải gói dịch vụ.
+Khắc phục:* Chuyển tạm card mạng máy Ubuntu sang chế độ NAT để chạy `apt update && apt install -y bind9`, sau khi cài xong chuyển lại về `LAN segment: dns-lab`.
+Lỗi cảnh báo phân quyền file Netplan (Permissions for /etc/netplan/... too open):** Khi chạy `sudo netplan apply` bị hiện các dòng cảnh báo màu vàng.
+Khắc phục:* Chạy lệnh `sudo chmod 600 /etc/netplan/*.yaml` để thu hẹp quyền đọc file cấu hình.
