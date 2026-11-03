@@ -1,0 +1,55 @@
+BÁO CÁO THỰC HÀNH LAB 9
+- **Họ và tên:** Lương Hào Minh
+- **MSSV:** 1150080066
+- **Bài thực hành:** Lab 9 – Local DNS Attack (DNS Spoofing & Cache Poisoning trong cùng Subnet)
+- **Trạng thái:** Đang thực hiện (Hoàn thành ~40% – Đã dựng hạ tầng cô lập, gán IP và kiểm tra thông mạng)
+
+**1. Môi trường thực hành**
+*Hệ điều hành / Máy ảo (VMware Workstation):*
+- **Firewall / Router:** pfSense 2.7.2-RELEASE (nền FreeBSD 64-bit) (DNSLAB: 10.9.0.1/24).
+- **DNS Server:** Ubuntu Server 24.04 LTS (10.9.0.10/24) chạy BIND9.
+- **Client / Victim:** Client-A (Ubuntu / Windows) (10.9.0.100/24).
+- **Attacker:** Kali Linux (10.9.0.200/24) chạy các script Python, Scapy.
+
+*Cấu hình Card mạng ảo (VMware Virtual Network):*
+- **Card DNSLAB:** Chế độ LAN Segment `dns-lab` (dải IP nội bộ cô lập 10.9.0.0/24).
+- **Đặc biệt:** Máy Attacker (Kali) nằm CÙNG mạng `dns-lab` với Victim và DNS Server.
+
+*Công cụ / Dịch vụ sử dụng:*
+- BIND9 (named), Netplan, dig, resolvectl.
+- pfSense WebGUI & Firewall Ruleset.
+- Wireshark, Scapy, tcpdump (phục vụ sniffing gói tin).
+
+**2. Cách dựng môi trường**
+1. **Khởi tạo phân vùng mạng ảo cô lập:**
+   Mở Virtual Machine Settings trên VMware, nhấp vào nút LAN Segments... tạo phân vùng mạng mới đặt tên `dns-lab`.
+2. **Gán Card mạng cho các máy ảo:**
+   - pfSense: Gán Network Adapter kết nối vào `LAN segment: dns-lab`.
+   - DNS-SERVER, VICTIM, Attacker (Kali): Chuyển toàn bộ Network Adapter sang `LAN segment: dns-lab`.
+   - Bật Promiscuous Mode (chế độ nghe lén) cho card mạng của Kali trong VMware (hoặc thông qua cấu hình pfSense/OS) để cho phép Kali bắt được các gói tin không gửi trực tiếp cho nó.
+3. **Gán Interface và cấu hình IP trên pfSense Console/WebGUI:**
+   Gán card mới cho interface DNSLAB, đặt IP tĩnh 10.9.0.1/24 (không gán Upstream Gateway).
+   Tạo các luật cô lập (Firewall Rules): Cho phép mạng 10.9.0.0/24 truy vấn DNS ra ngoài (nếu cần cho bài lab) và chặn giao tiếp với các dải mạng không liên quan.
+4. **Cấu hình địa chỉ IP tĩnh trên máy ảo:**
+   - DNS-SERVER: Chỉnh file Netplan gán IP 10.9.0.10/24, Gateway 10.9.0.1.
+   - VICTIM: Đặt IP 10.9.0.100/24, Gateway 10.9.0.1, trỏ DNS Server duy nhất về 10.9.0.10.
+   - Kali Linux: Đặt IP tĩnh 10.9.0.200/24, Gateway 10.9.0.1.
+5. **Kiểm tra thông mạng nội bộ:**
+   Từ DNS-SERVER, VICTIM và Kali thực hiện lệnh ping 10.9.0.1 để kiểm tra kết nối tới pfSense.
+
+**3. Tiến độ và kết quả các tình huống**
+- **Khởi tạo phân vùng cô lập & Gán Card mạng (dns-lab):** Tạo đúng LAN Segment dns-lab và gán card cho pfSense, DNS-SERVER, VICTIM, Kali — PASS
+- **Cấu hình IP tĩnh & Thông mạng nội bộ:** Đặt IP tĩnh cho DNS-SERVER (10.9.0.10), VICTIM (10.9.0.100), Kali (10.9.0.200) và ping thông mạng thành công — PASS
+- **Cài đặt & Baseline dịch vụ DNS (BIND9):** Cài bind9, cấu hình forward/zone và kiểm tra lệnh dig từ Victim trả kết quả hợp lệ — IN PROGRESS (Đang thực hiện)
+- **Task 1 – Nghe lén (Sniffing) lưu lượng DNS:** Dùng Wireshark/tcpdump trên Kali để bắt các gói truy vấn từ Victim gửi tới DNS-SERVER — IN PROGRESS (Đang thực hiện)
+- **Task 2 – Local DNS Spoofing (Tấn công trực tiếp Victim):** Kali sniff gói truy vấn và gửi phản hồi giả mạo trực tiếp cho Victim trước khi DNS-SERVER thật kịp phản hồi — PENDING (Chưa thực hiện)
+- **Task 3 – Local DNS Cache Poisoning:** Kali sniff truy vấn của DNS-SERVER gửi ra ngoài và giả mạo phản hồi để đầu độc bộ nhớ đệm (cache) của DNS-SERVER — PENDING (Chưa thực hiện)
+
+**4. Lỗi gặp phải và cách khắc phục**
+- **Lỗi Kali không bắt được gói tin (Sniffing thất bại):** Khi chạy Wireshark trên Kali, chỉ thấy gói tin broadcast hoặc gói tin của chính Kali, không thấy truy vấn của Victim.
+  *Khắc phục:* Đảm bảo máy ảo Kali đã được thiết lập tính năng Promiscuous Mode (Chế độ hỗn tạp) trên card mạng ảo tương ứng để có thể đọc được lưu lượng của toàn mạng `dns-lab`.
+- **Lỗi ping 10.9.0.1 báo 100% packet loss:** Do chọn sai card mạng khiến các máy nằm ở các dải mạng ảo khác nhau.
+  *Khắc phục:* Mở Settings trên VMware của các máy bị lỗi, đưa cùng về một nút chọn `LAN segment: dns-lab`.
+- **Lỗi cảnh báo phân quyền file Netplan (Permissions for /etc/netplan/... too open):** Khi chạy `sudo netplan apply` bị hiện các dòng cảnh báo màu vàng.
+
+
